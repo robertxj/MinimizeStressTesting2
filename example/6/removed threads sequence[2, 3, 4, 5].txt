@@ -1,0 +1,4 @@
+(write,1,ac1.amount:Write,(TestAccountBasic2.java:152))
+(write,1,ac2.amount:Write,(TestAccountBasic2.java:152))
+(write,1,ac3.amount:Write,(TestAccountBasic2.java:152))
+(write,1,ac4.amount:Write,(TestAccountBasic2.java:152))
