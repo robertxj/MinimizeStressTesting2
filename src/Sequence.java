@@ -103,7 +103,7 @@ public class Sequence {
 	
 		BufferedWriter bwRMThreads = null;
 		try {
-			bwRMThreads = new BufferedWriter(new FileWriter("removing thread" + removedThreads.toString() + ".txt"));
+			bwRMThreads = new BufferedWriter(new FileWriter("removing thread" + removedThreads.hashCode() + ".txt"));
 			for(int removedThread : removedThreads) {
 				bwRMThreads.write(Integer.toString(removedThread));
 				bwRMThreads.newLine();
@@ -116,7 +116,7 @@ public class Sequence {
 		
 		BufferedWriter bwRMThreadsTrace = null;
 		try {
-			bwRMThreadsTrace = new BufferedWriter(new FileWriter("removing threads trace" + removedThreads.toString()  + ".txt"));
+			bwRMThreadsTrace = new BufferedWriter(new FileWriter("removing threads trace" + removedThreads.hashCode()  + ".txt"));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -128,6 +128,9 @@ public class Sequence {
 			try {
 				while((line = input.readLine() )!= null){
 					Event event = new Event(line);
+					if (event.getType().equals("entrymethod") || event.getType().equals("exitmethod")) {
+						continue;
+					}
 					boolean isRemovedJoiner = false;
 					for (int threadID : removedThreads) {
 						if (event.getSharedVariable().equals("Joiner" + threadID)) {
@@ -151,12 +154,12 @@ public class Sequence {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		File source = new File("removing threads trace" + removedThreads.toString()  + ".txt");
+		File source = new File("removing threads trace" + removedThreads.hashCode()  + ".txt");
 	    File target = new File("localize-replay.txt");
 	    
 		copyWithStreams(source, target, false);
 		
-		File source2 = new File("removing thread" + removedThreads.toString() + ".txt");
+		File source2 = new File("removing thread" + removedThreads.hashCode() + ".txt");
 	    File target2 = new File("removingThreads.txt");
 	    copyWithStreams(source2, target2, false);
 	    
@@ -227,7 +230,7 @@ public class Sequence {
 	
 		BufferedWriter bwRMIterations = null;
 		try {
-			bwRMIterations = new BufferedWriter(new FileWriter("removing iterations" + removedIterations.toString() + ".txt"));
+			bwRMIterations = new BufferedWriter(new FileWriter("removing iterations" + removedIterations.hashCode() + ".txt"));
 			for(Pair removedPair : removedIterations) {
 				bwRMIterations.write(removedPair.toString());
 				bwRMIterations.newLine();
@@ -240,12 +243,23 @@ public class Sequence {
 		
 		BufferedWriter bwRMIterationsTrace = null;
 		try {
-			bwRMIterationsTrace = new BufferedWriter(new FileWriter("removing iterations trace" + removedIterations.toString()  + ".txt"));
+			bwRMIterationsTrace = new BufferedWriter(new FileWriter("removing iterations trace" + removedIterations.hashCode()  + ".txt"));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
+		Set<Integer> removedIterationThreads = new HashSet<>();
+		Map<Integer, Set<Integer>> removedIterationsMap = new HashMap<>();
+		for (Pair p : removedIterations) {
+			if (removedIterationsMap.containsKey(p.thread)) {
+				removedIterationsMap.get(p.thread).add(p.iteration);
+			} else {
+				Set<Integer> set = new HashSet<Integer>();
+				set.add(p.iteration);
+				removedIterationsMap.put(p.thread, set);
+			}
+		}
 		try {
 			BufferedReader input = new BufferedReader(new FileReader(traceFilePath));
 			String line=null;
@@ -260,10 +274,22 @@ public class Sequence {
 						}
 					}
 					if (!removedThreadIDs.contains(event.getThreadID()) && !isRemovedJoiner) {
-						// todo: only write events not in removed iterations
+						// Only write events not in removed iterations
+						if (event.getType().equals("entrymethod")) {
+							if (removedIterationsMap.containsKey(event.getThreadID()) && removedIterationsMap.get(event.getThreadID()).contains(event.getIterationID())) {
+								removedIterationThreads.add(event.getThreadID());
+							}
+							continue;
+						} else if (event.getType().equals("exitmethod")) {
+							removedIterationThreads.remove(event.getThreadID());
+							continue;
+						}
+						if (!removedIterationThreads.contains(event.getThreadID())) {
+							bwRMIterationsTrace.write(line);
+							bwRMIterationsTrace.newLine();
+						}
 						
-						bwRMIterationsTrace.write(line);
-						bwRMIterationsTrace.newLine();
+						
 					}
 					
 				}
@@ -278,21 +304,25 @@ public class Sequence {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		File source = new File("removing iterations trace" + removedIterations.toString()  + ".txt");
+		File source = new File("removing iterations trace" + removedIterations.hashCode()  + ".txt");
 	    File target = new File("localize-replay.txt");
 	    
 		copyWithStreams(source, target, false);
 		
-		File source2 = new File("removing iterations" + removedIterations.toString() + ".txt");
+		File source2 = new File("removing iterations" + removedIterations.hashCode() + ".txt");
 	    File target2 = new File("removingIterations.txt");
 	    copyWithStreams(source2, target2, false);
 	    
 	}
 	
 	
-	public void minimizeMethods(int thread, int iteration, int firstMethod, int lastMethod) {
+	public void minimizeMethods(int thread, int iteration, int firstMethod, int lastMethod) {		
 		// if this thread has been removed, we just return
-		if (removedMethodIDs.contains(new Pair(thread + 1, iteration + 1))) {
+		if (removedThreadIDs.contains(thread + 1)) {
+			return;
+		}
+		// if this iteration has been removed, we just return
+		if (removedIterationIDs.contains(new Pair(thread + 1, iteration + 1))) {
 			return;
 		}
 		
@@ -352,7 +382,7 @@ public class Sequence {
 	
 		BufferedWriter bwRMMethods = null;
 		try {
-			bwRMMethods = new BufferedWriter(new FileWriter("removing methods" + removedMethods.toString() + ".txt"));
+			bwRMMethods = new BufferedWriter(new FileWriter("removing methods" + removedMethods.hashCode() + ".txt"));
 			for(Triple removedTriple : removedMethods) {
 				bwRMMethods.write(removedTriple.toString());
 				bwRMMethods.newLine();
@@ -365,20 +395,115 @@ public class Sequence {
 		
 		BufferedWriter bwRMMethodsTrace = null;
 		try {
-			bwRMMethodsTrace = new BufferedWriter(new FileWriter("removing iterations trace" + removedMethods.toString()  + ".txt"));
+			bwRMMethodsTrace = new BufferedWriter(new FileWriter("removing methods trace" + removedMethods.hashCode()  + ".txt"));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
 		// TODO remove events from trace
-		
-		File source = new File("removing methods trace" + removedMethods.toString()  + ".txt");
+	
+		Set<Integer> removedIterationThreads = new HashSet<>();
+		Map<Integer, Set<Integer>> removedIterationsMap = new HashMap<>();
+		for (Pair p : removedIterationIDs) {
+			if (removedIterationsMap.containsKey(p.thread)) {
+				removedIterationsMap.get(p.thread).add(p.iteration);
+			} else {
+				Set<Integer> set = new HashSet<Integer>();
+				set.add(p.iteration);
+				removedIterationsMap.put(p.thread, set);
+			}
+		}
+		Map<Integer, Integer> threadToIteration = new HashMap<>();
+		Map<Integer, Map<Integer, String>> threadToIterationToMethod = new HashMap<>();
+		try {
+			BufferedReader input = new BufferedReader(new FileReader(traceFilePath));
+			String line=null;
+			try {
+				int lineNum = 0;
+				while((line = input.readLine() )!= null){
+					lineNum++;
+					Event event = new Event(line);
+					boolean isRemovedJoiner = false;
+					for (int threadID : removedThreadIDs) {
+						if (event.getSharedVariable().equals("Joiner" + threadID)) {
+							isRemovedJoiner = true;
+						}
+					}
+					if (!removedThreadIDs.contains(event.getThreadID()) && !isRemovedJoiner) {
+						// Only write events not in removed iterations
+						if (event.getType().equals("entrymethod")) {
+							if (removedIterationsMap.containsKey(event.getThreadID()) && removedIterationsMap.get(event.getThreadID()).contains(event.getIterationID())) {
+								removedIterationThreads.add(event.getThreadID());
+							}
+//							if (threadToIteration.containsKey(event.getThreadID())) {
+//								threadToIteration.put(event.getThreadID(), threadToIteration.get(event.getThreadID())+1);
+//							} else {
+//								threadToIteration.put(event.getThreadID(), 1);
+//							}
+							threadToIteration.put(event.getThreadID(), event.getIterationID());
+							if (!threadToIterationToMethod.containsKey(event.getThreadID())) {
+								Map<Integer, String> map = new HashMap<>();
+								map.put(threadToIteration.get(event.getThreadID()), event.getMethodName());
+								threadToIterationToMethod.put(event.getThreadID(), map);
+							} else {
+								Map<Integer, String> map = threadToIterationToMethod.get(event.getThreadID());
+								map.put(threadToIteration.get(event.getThreadID()), event.getMethodName());
+							}
+							
+							continue;
+						} else if (event.getType().equals("exitmethod")) {
+							removedIterationThreads.remove(event.getThreadID());
+							continue;
+						}
+						if (!removedIterationThreads.contains(event.getThreadID())) {
+							
+							Map<String, Integer> methodNameToID = new HashMap<>();
+							methodNameToID.put("ac1deposit", 1);
+							methodNameToID.put("ac1withdraw", 2);
+							methodNameToID.put("ac1transfer", 3);
+							methodNameToID.put("ac2deposit", 4);
+							methodNameToID.put("ac2withdraw", 5);
+							methodNameToID.put("ac2transfer", 6);
+							int eventThreadID = event.getThreadID();
+							if (eventThreadID == 1) {
+								bwRMMethodsTrace.write(line);
+								bwRMMethodsTrace.newLine();
+							} else {
+								int eventIterationID = threadToIteration.get(eventThreadID);
+								int eventMethodID = methodNameToID.get(threadToIterationToMethod.get(eventThreadID).get(eventIterationID));
+								if (!removedMethods.contains(new Triple(eventThreadID, eventIterationID, eventMethodID))) {
+								//	System.out.println(lineNum);
+								//	System.out.println(line);
+									bwRMMethodsTrace.write(line);
+									bwRMMethodsTrace.newLine();
+								}	
+							}
+							
+							
+						}
+						
+						
+					}
+					
+				}
+				bwRMMethodsTrace.flush();
+				
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		File source = new File("removing methods trace" + removedMethods.hashCode()  + ".txt");
 	    File target = new File("localize-replay.txt");
 	    
 		copyWithStreams(source, target, false);
 		
-		File source2 = new File("removing methods" + removedMethods.toString() + ".txt");
+		File source2 = new File("removing methods" + removedMethods.hashCode() + ".txt");
 	    File target2 = new File("removingMethods.txt");
 	    copyWithStreams(source2, target2, false);
 	    
@@ -416,10 +541,17 @@ public class Sequence {
 	public static void main(String[] args) {
 		Sequence seq = new Sequence("trace.txt", 5, 4, 6);
 		seq.minimizeThreads(1, 4);
-		for (int i = 0; i < 4; i++) {
+		System.out.println(seq.removedThreadIDs.toString());
+		for (int i = 1; i < 5; i++) {
 			seq.minimizeIterations(i, 0, 3);
 		}
-		System.out.println(seq.removedThreadIDs.toString());
+		System.out.println(seq.removedIterationIDs.toString());
+		for (int i = 1; i < 5; i++) {
+			for (int j = 0; j < 4; j++) {
+				seq.minimizeMethods(i, j, 0, 5);
+			}
+		} 
+		System.out.println(seq.removedMethodIDs.toString());
 	}
 
 }

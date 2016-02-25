@@ -1,6 +1,6 @@
 public class Pair {
-	int thread;
-	int iteration;
+	public int thread;
+	public int iteration;
 	public Pair(int t, int i) {
 		thread = t;
 		iteration = i;
@@ -13,6 +13,10 @@ public class Pair {
 	}
 	
 	public String toString() {
-		return thread + ", " + iteration;
+		return thread + "," + iteration;
 	}
+	
+	public int hashCode(){    
+        return thread + iteration;
+    } 
 }

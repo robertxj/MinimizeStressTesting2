@@ -1,8 +1,8 @@
 public class Triple {
 	// thread, iteration, method id. begins with 1;
-	int thread;
-	int iteration;
-	int method;
+	public int thread;
+	public int iteration;
+	public int method;
 	public Triple(int t, int i, int m) {
 		thread = t;
 		iteration = i;
@@ -16,8 +16,12 @@ public class Triple {
 		return thread == t2Triple.thread && iteration == t2Triple.iteration && method == t2Triple.method;
 	}
 	
+	public int hashCode(){ 
+		return thread + iteration + method;
+	}
+	
 	public String toString() {
-		return thread + ", " + iteration + ", " + method;
+		return thread + "," + iteration + "," + method;
 	}
 	
 }
