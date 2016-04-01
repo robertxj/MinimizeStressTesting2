@@ -1,0 +1,2 @@
+(1,write,Num_Of_Seats_Sold:Write,(TestBug.java:136),-1)
+(1,write,StopSales:Write,(TestBug.java:137),-1)

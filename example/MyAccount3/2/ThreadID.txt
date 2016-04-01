@@ -1,0 +1,6 @@
+(*This file is read-only; the Thread IDs cannot be changed.*)
+MainThread 1
+Consumer1 2
+Consumer2 3
+Producer3 4
+Producer4 5

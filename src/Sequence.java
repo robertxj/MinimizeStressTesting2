@@ -16,10 +16,16 @@ public class Sequence {
 	int iterations;
 	int methods;
 
+	int fails;
+	int passes;
+	
+	int redundants;  // in old, >0
+	int extras;  // in new, -1
+	
 	public Sequence(String inputFile, int threads, int iterations, int methods) {
 		events = new ArrayList<Event>();
 //		threadIDs = new ArrayList<>();
-		traceFilePath = inputFile;
+		
 		removedThreadIDs = new HashSet<>();
 		removedIterationIDs = new HashSet<>();
 		removedMethodIDs = new HashSet<>();
@@ -43,6 +49,56 @@ public class Sequence {
 		} catch (IOException ex) {
 			ex.printStackTrace();
 		}
+		boolean[] swappedEvents = new boolean[events.size()];
+		for (int i = 0; i < events.size(); i++) {
+			Event curEvent = events.get(i);
+			if (!swappedEvents[i] && curEvent.getType().equals("entry")) {
+				int j = i + 1;
+				while (j < events.size()) {
+					Event pairEvent = events.get(j);
+					if (pairEvent.getType().equals("entrymethod") && curEvent.getThreadID() == pairEvent.getThreadID() && curEvent.getSharedVariable().equals(pairEvent.getSharedVariable()) && curEvent.getMethodName().equals(pairEvent.getMethodName())) {
+						Event temp = events.get(i);
+						events.set(i, events.get(j));
+						events.set(j, temp);
+						
+						swappedEvents[i] = true;
+						swappedEvents[j] = true;
+						break;
+					}
+					j++;
+				}
+			}
+			if (!swappedEvents[i] && curEvent.getType().equals("exitmethod")) {
+				int j = i + 1;
+				while (j < events.size()) {
+					Event pairEvent = events.get(j);
+					if (pairEvent.getType().equals("exit") && curEvent.getThreadID() == pairEvent.getThreadID() && curEvent.getSharedVariable().equals(pairEvent.getSharedVariable()) && curEvent.getMethodName().equals(pairEvent.getMethodName())) {
+						Event temp = events.get(i);
+						events.set(i, events.get(j));
+						events.set(j, temp);
+						
+						swappedEvents[i] = true;
+						swappedEvents[j] = true;
+						break;
+					}
+					j++;
+				}
+			}
+		}
+		
+		BufferedWriter bwRevisedTrace = null;
+		try {
+			bwRevisedTrace = new BufferedWriter(new FileWriter("revisedTrace.txt"));
+			for(Event e : events) {
+				bwRevisedTrace.write(e.toString());
+				bwRevisedTrace.newLine();
+			}
+			bwRevisedTrace.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		traceFilePath = "revisedTrace.txt";
 	}
 	
 	// minimizeThreads(1, seq.threadIDs.size() - 1); since main thread is the first thread with index 0;
@@ -54,7 +110,7 @@ public class Sequence {
 		
 		removeThreads(firstThread, lastThread);
 		
-		String[] commandAndOptions_RuntimeExec = {"java", "-jar", "-Dmode=localize", "MyAccount.jar"};
+		String[] commandAndOptions_RuntimeExec = {"java", "-jar", "-Dlookahead=5", "-Dmode=localize", "MyAccount.jar"};
 		ProcessBuilder pb = new ProcessBuilder(commandAndOptions_RuntimeExec);
 		
 		try {
@@ -69,7 +125,7 @@ public class Sequence {
 		
 		
 		try {
-			Thread.sleep(2000);
+			Thread.sleep(10000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -78,7 +134,13 @@ public class Sequence {
 		// res is the result of the execution 
 		ResultFile resultFile = new ResultFile("result.txt");
 		boolean res = resultFile.result;
+		if (res) {
+			passes++;
+		} else {
+			fails++;
+		}
 		System.out.println(res);
+		
 		
 		String newTraceFilePath = null;
 		if (!res) {
@@ -180,7 +242,7 @@ public class Sequence {
 		
 		removeIterations(thread, firstIteration, lastIteration);
 		
-		String[] commandAndOptions_RuntimeExec = {"java", "-jar", "-Dmode=localize", "MyAccount.jar"};
+		String[] commandAndOptions_RuntimeExec = {"java", "-jar", "-Dlookahead=5", "-Dmode=localize", "MyAccount.jar"};
 		ProcessBuilder pb = new ProcessBuilder(commandAndOptions_RuntimeExec);
 		
 		try {
@@ -195,7 +257,7 @@ public class Sequence {
 		
 		
 		try {
-			Thread.sleep(2000);
+			Thread.sleep(10000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -332,7 +394,7 @@ public class Sequence {
 		
 		removeMethods(thread, iteration, firstMethod, lastMethod);
 		
-		String[] commandAndOptions_RuntimeExec = {"java", "-jar", "-Dmode=localize", "MyAccount.jar"};
+		String[] commandAndOptions_RuntimeExec = {"java", "-jar", "-Dlookahead=5", "-Dmode=localize", "MyAccount.jar"};
 		ProcessBuilder pb = new ProcessBuilder(commandAndOptions_RuntimeExec);
 		
 		try {
@@ -347,7 +409,7 @@ public class Sequence {
 		
 		
 		try {
-			Thread.sleep(2000);
+			Thread.sleep(10000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -444,11 +506,11 @@ public class Sequence {
 							threadToIteration.put(event.getThreadID(), event.getIterationID());
 							if (!threadToIterationToMethod.containsKey(event.getThreadID())) {
 								Map<Integer, String> map = new HashMap<>();
-								map.put(threadToIteration.get(event.getThreadID()), event.getMethodName());
+								map.put(threadToIteration.get(event.getThreadID()), event.getSharedVariable()+event.getMethodName());
 								threadToIterationToMethod.put(event.getThreadID(), map);
 							} else {
 								Map<Integer, String> map = threadToIterationToMethod.get(event.getThreadID());
-								map.put(threadToIteration.get(event.getThreadID()), event.getMethodName());
+								map.put(threadToIteration.get(event.getThreadID()), event.getSharedVariable()+event.getMethodName());
 							}
 							
 							continue;
@@ -465,6 +527,9 @@ public class Sequence {
 							methodNameToID.put("ac2deposit", 4);
 							methodNameToID.put("ac2withdraw", 5);
 							methodNameToID.put("ac2transfer", 6);
+							
+//							methodNameToID.put("main_TicketsManagement1sell", 1);
+							
 							int eventThreadID = event.getThreadID();
 							if (eventThreadID == 1) {
 								bwRMMethodsTrace.write(line);
@@ -539,19 +604,68 @@ public class Sequence {
 	  }
 	
 	public static void main(String[] args) {
-		Sequence seq = new Sequence("trace.txt", 5, 4, 6);
-		seq.minimizeThreads(1, 4);
+		Sequence seq = new Sequence("trace.txt", 11, 100, 6);
+		seq.minimizeThreads(1, 10);
 		System.out.println(seq.removedThreadIDs.toString());
-		for (int i = 1; i < 5; i++) {
-			seq.minimizeIterations(i, 0, 3);
+		Set<Integer> removedThreads = new HashSet<>(seq.removedThreadIDs);
+	
+		BufferedWriter bwRMThreads = null;
+		try {
+			bwRMThreads = new BufferedWriter(new FileWriter("removingThreads.txt"));
+			for(int removedThread : removedThreads) {
+				bwRMThreads.write(Integer.toString(removedThread));
+				bwRMThreads.newLine();
+			}
+			bwRMThreads.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		for (int i = 1; i < 11; i++) {
+			seq.minimizeIterations(i, 0, 99);
 		}
 		System.out.println(seq.removedIterationIDs.toString());
-		for (int i = 1; i < 5; i++) {
-			for (int j = 0; j < 4; j++) {
+		
+		Set<Pair> removedIterations = new HashSet<>(seq.removedIterationIDs);
+		
+		BufferedWriter bwRMIterations = null;
+		try {
+			bwRMIterations = new BufferedWriter(new FileWriter("removingIterations.txt"));
+			for(Pair removedIteration : removedIterations) {
+				bwRMIterations.write(removedIteration.toString());
+				bwRMIterations.newLine();
+			}
+			bwRMIterations.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		for (int i = 1; i < 11; i++) {
+			for (int j = 0; j < 100; j++) {
 				seq.minimizeMethods(i, j, 0, 5);
+//				seq.minimizeMethods(i, j, 0, 0);
 			}
 		} 
 		System.out.println(seq.removedMethodIDs.toString());
+		Set<Triple> removedMethods = new HashSet<>(seq.removedMethodIDs);
+		
+		BufferedWriter bwRMMethods = null;
+		try {
+			bwRMMethods = new BufferedWriter(new FileWriter("removingMethods.txt"));
+			for(Triple removedMethod : removedMethods) {
+				bwRMMethods.write(removedMethod.toString());
+				bwRMMethods.newLine();
+			}
+			bwRMMethods.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.out.println(seq.passes);
+		System.out.println(seq.fails);
+		
 	}
 
 }

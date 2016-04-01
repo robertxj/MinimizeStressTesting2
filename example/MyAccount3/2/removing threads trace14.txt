@@ -1,0 +1,2 @@
+(1,write,in:Write,(BoundedBuffer.java:144),-1)
+(1,write,out:Write,(BoundedBuffer.java:145),-1)

@@ -11,12 +11,12 @@ public class Event {
 		// split
 		String[] str = line.split(",");
 
-		String type = str[0];
-		String threadID = str[1];
-		String sharedVariable = str[2];
-		String[] str3 = sharedVariable.split(":");
+		String threadID = str[0];
+		String type = str[1];
+		String sharedVariableAndMethodName = str[2];
+		String[] str3 = sharedVariableAndMethodName.split(":");
 		sharedVariable = str3[0];
-		methodName = sharedVariable + str3[1];
+		methodName = str3[1];
 		String position = str[3];
 		position = position.substring(1, position.length() - 1);
 		String[] str2 = position.split(":");
@@ -28,7 +28,6 @@ public class Event {
 				Integer.parseInt(lineNum));
 		
 		this.threadID = Integer.parseInt(threadID);
-		this.sharedVariable = sharedVariable;
 		this.type = type;
 		this.position = p;
 		this.iterationID = Integer.parseInt(iterationID);
@@ -73,7 +72,7 @@ public class Event {
 //		return Long.toString(threadId)+","+sharedVariable+","+type+","+Long.toString(eventId)+","+position.toString();
 //	}
 	public String toString(){
-		return "(" + type +","+Long.toString(threadID)+","+sharedVariable+","+"("+position.toString()+")"+ "," + iterationID +")";
+		return "(" + Long.toString(threadID) +","+ type +","+sharedVariable+":"+ methodName + ","+"("+position.toString()+")"+ "," + iterationID +")";
 	}
 	public boolean equals(Object o){
 		if(this ==o)
